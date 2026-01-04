@@ -1,54 +1,110 @@
-Network Intrusion Detection System (NIDS)
+Network Intrusion Detection Using Machine Learning
 
-Project Overview:
-The Network Intrusion Detection System (NIDS) is a cybersecurity project designed to monitor network traffic and detect suspicious activities, intrusions, or attacks in real-time. 
-Using machine learning techniques, the system can classify network traffic as normal or malicious, helping organizations prevent potential security breaches.
+A Flask web application that allows users to detect network intrusions from CSV files using a trained machine learning model. The application predicts whether each network connection is normal or an attack type (DoS, Probe, R2L, U2R) and displays results in the browser.
 
+Features
 
+Upload CSV files with network data.
 
-Project Structure
-network-intrusion-detection/
-│
-├── data/                  # Dataset files
-├── models/                # Trained ML models
-├── results/               # Generated reports and logs
-├── train_model.py         # Script to train ML models
-├── test_model.py          # Script to test or monitor traffic
-├── app.py                # Entry point of the project
-├── config.py              # Configuration file
-├── requirements.txt       # Python dependencies
-└── README.md
+Predict intrusions using a Random Forest classifier.
+
+Display predictions in a browser table.
+
+Highlight suspicious/attack entries.
+
+Save trained model and label encoders for reuse.
+
+Dataset
+
+Based on NSL-KDD dataset or your own network traffic dataset.
+
+Includes 41+ network traffic features such as duration, protocol_type, service, flag, src_bytes, dst_bytes, and more.
+
+Features are encoded using LabelEncoder before feeding into the model.
+
+Technologies
+
+Python 3.10+
+
+Flask – for web application
+
+pandas – for data handling
+
+scikit-learn – for model training and prediction
+
+pickle – for saving/loading trained model
 
 Installation
-Clone the repository:
-git clone https://github.com/parameshwar21/network-intrusion-detection.git
 
-Navigate to the project folder:
+1.Clone this repository:
+
+git clone <your-repo-url>
 cd network-intrusion-detection
 
-Install the required dependencies:
-pip install -r requirements.txt
 
+2.Create a virtual environment (recommended):
+
+python -m venv nids_env
+nids_env\Scripts\activate   # Windows
+# source nids_env/bin/activate  # Linux/Mac
+
+
+3.Install dependencies:
+
+pip install numpy pandas scikit-learn flask
 
 Usage
 
-Prepare your dataset (e.g., NSL-KDD) in CSV format.
+Train the model (if you don’t have a pre-trained .pkl):
 
-Configure dataset path in the config.py file.
-
-Train the machine learning model:
-
-python train_model.py
+python retrain_save_model.py
 
 
-Test or monitor network traffic:
+Run the Flask app:
 
-python test_model.py
-
-
-View reports and results in the results/ folder.
+python app.py
 
 
-Run the project:
+Open your browser and go to:
 
-python main.py
+http://127.0.0.1:5000
+
+
+Upload CSV files and click Predict to see results.
+
+File Structure
+network-intrusion-detection/
+│
+├─ app.py                  # Main Flask application
+├─ predict.py              # Prediction functions using trained model
+├─ retrain_save_model.py   # Script to train & save the model locally
+├─ model/                  # Folder containing model & label encoders
+│   ├─ intrusion_model.pkl
+│   └─ label_encoders.pkl
+├─ templates/
+│   └─ index.html          # Web page template for file upload & results
+├─ static/
+│   └─ styles.css          # Optional: CSS for table styling
+├─ Train_data.csv          # Sample training dataset
+├─ Test_data.csv           # Sample testing dataset
+└─ README.md
+
+Model Training
+
+The project uses a Random Forest Classifier from scikit-learn.
+
+Categorical features (protocol_type, service, flag, etc.) are encoded with LabelEncoder.
+
+Model and encoders are saved using pickle for later use in Flask.
+
+Retraining ensures compatibility with your current numpy/scikit-learn versions.
+
+CSV Format
+
+CSV must include all 41+ features used during training.
+
+Column names must match the training dataset exactly.
+
+Example columns:
+
+duration,protocol_type,service,flag,src_bytes,dst_bytes,count,srv_count,...,label
