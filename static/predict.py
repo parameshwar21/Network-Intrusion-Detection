@@ -39,3 +39,4 @@ def predict_intrusion_file(file_path):
     df['prediction'] = le_label.inverse_transform(predictions)
 
     return df
+
