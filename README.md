@@ -14,7 +14,7 @@ network-intrusion-detection/
 ├── results/               # Generated reports and logs
 ├── train_model.py         # Script to train ML models
 ├── test_model.py          # Script to test or monitor traffic
-├── main.py                # Entry point of the project
+├── app.py                # Entry point of the project
 ├── config.py              # Configuration file
 ├── requirements.txt       # Python dependencies
 └── README.md
