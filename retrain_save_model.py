@@ -1,91 +1,109 @@
-import pandas as pd
+# retrain_save_model.py
 import os
-import pickle
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
+import pandas as pd
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import LabelEncoder, StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+import joblib
 
-# ==========================
-# 1. Load Dataset
-# ==========================
-train_path = "Train_data.csv"  # update path if needed
-test_path  = "Test_data.csv"
+# -------------------------------
+# Paths
+# -------------------------------
+dataset_folder = os.path.join(os.getcwd(), "dataset")  # dataset folder
+train_path = os.path.join(dataset_folder, "KDDTrain.txt")
+test_path  = os.path.join(dataset_folder, "KDDTest.txt")
+model_folder = os.path.join(os.getcwd(), "model")
+os.makedirs(model_folder, exist_ok=True)
 
-train_df = pd.read_csv(train_path)
-test_df  = pd.read_csv(test_path)
+# -------------------------------
+# Column names for NSL-KDD
+# -------------------------------
+columns = [
+    "duration","protocol_type","service","flag","src_bytes","dst_bytes","land","wrong_fragment",
+    "urgent","hot","num_failed_logins","logged_in","num_compromised","root_shell","su_attempted",
+    "num_root","num_file_creations","num_shells","num_access_files","num_outbound_cmds",
+    "is_host_login","is_guest_login","count","srv_count","serror_rate","srv_serror_rate",
+    "rerror_rate","srv_rerror_rate","same_srv_rate","diff_srv_rate","srv_diff_host_rate",
+    "dst_host_count","dst_host_srv_count","dst_host_same_srv_rate","dst_host_diff_srv_rate",
+    "dst_host_same_src_port_rate","dst_host_srv_diff_host_rate","dst_host_serror_rate",
+    "dst_host_srv_serror_rate","dst_host_rerror_rate","dst_host_srv_rerror_rate","label","difficulty"
+]
 
-print("Train shape:", train_df.shape)
-print("Test shape:", test_df.shape)
+# -------------------------------
+# Load datasets
+# -------------------------------
+def load_dataset(path):
+    try:
+        df = pd.read_csv(path, names=columns, sep="\t", engine="python")
+        if df.shape[1] == 1:  # fallback to comma if tab failed
+            df = pd.read_csv(path, names=columns, sep=",", engine="python")
+    except Exception as e:
+        raise ValueError(f"Error loading {path}: {e}")
+    return df
 
-# ==========================
-# 2. Identify Target Column
-# ==========================
-TARGET_COL = train_df.columns[-1]  # usually the last column
-print("Target column:", TARGET_COL)
+train_df = load_dataset(train_path)
+test_df  = load_dataset(test_path)
 
-# ==========================
-# 3. Encode Categorical Columns
-# ==========================
-categorical_cols = ['protocol_type', 'service', 'flag']
-label_encoders = {}
+# -------------------------------
+# Clean string columns
+# -------------------------------
+for col in train_df.select_dtypes(include="object").columns:
+    train_df[col] = train_df[col].astype(str).str.strip()
+for col in test_df.select_dtypes(include="object").columns:
+    test_df[col] = test_df[col].astype(str).str.strip()
 
-for col in categorical_cols:
-    le = LabelEncoder()
-    combined = pd.concat([train_df[col], test_df[col]], axis=0)
-    le.fit(combined)
-    train_df[col] = le.transform(train_df[col])
-    test_df[col] = le.transform(test_df[col])
-    label_encoders[col] = le
+# -------------------------------
+# Features & labels
+# -------------------------------
+categorical_cols = ["protocol_type", "service", "flag"]
+numerical_cols   = [c for c in columns if c not in categorical_cols + ["label", "difficulty"]]
 
-print("Categorical features encoded.")
+X_train = train_df[categorical_cols + numerical_cols]
+y_train = train_df["label"]
 
-# ==========================
-# 4. Encode Target Column
-# ==========================
-le_target = LabelEncoder()
-train_df[TARGET_COL] = le_target.fit_transform(train_df[TARGET_COL])
-label_encoders['label'] = le_target
+X_test  = test_df[categorical_cols + numerical_cols]
+y_test  = test_df["label"]
 
-print("Target column encoded.")
+# -------------------------------
+# Encode categorical features
+# -------------------------------
+categorical_transformer = OneHotEncoder(handle_unknown="ignore")
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("cat", categorical_transformer, categorical_cols),
+        ("num", StandardScaler(), numerical_cols)
+    ]
+)
 
-# ==========================
-# 5. Split Features & Target
-# ==========================
-X_train = train_df.drop(TARGET_COL, axis=1)
-y_train = train_df[TARGET_COL]
+# -------------------------------
+# Encode labels safely
+# -------------------------------
+label_encoder = LabelEncoder()
+y_train_enc = label_encoder.fit_transform(y_train)
 
-X_test = test_df.drop(TARGET_COL, axis=1, errors='ignore')  # some test CSV may not have target
-y_test = test_df[TARGET_COL] if TARGET_COL in test_df.columns else None
+# Map unseen test labels to -1
+y_test_enc = np.array([label_encoder.transform([lbl])[0] if lbl in label_encoder.classes_ else -1 for lbl in y_test])
 
-print("X_train:", X_train.shape)
-print("X_test:", X_test.shape)
+# -------------------------------
+# Build pipeline
+# -------------------------------
+pipeline = Pipeline(steps=[
+    ("preprocessor", preprocessor),
+    ("classifier", RandomForestClassifier(n_estimators=100, random_state=42))
+])
 
-# ==========================
-# 6. Train Random Forest Model
-# ==========================
-model = RandomForestClassifier(n_estimators=150, random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
-print("Model trained successfully.")
+# -------------------------------
+# Train model
+# -------------------------------
+print("Training Random Forest model...")
+pipeline.fit(X_train, y_train_enc)
+print("Training completed!")
 
-# ==========================
-# 7. Evaluate Model (if labels exist in test)
-# ==========================
-if y_test is not None:
-    y_pred = model.predict(X_test)
-    print("Accuracy:", accuracy_score(y_test, y_pred))
-    print("\nClassification Report:\n", classification_report(y_test, y_pred))
-    print("\nConfusion Matrix:\n", confusion_matrix(y_test, y_pred))
-
-# ==========================
-# 8. Save Model & Encoders
-# ==========================
-os.makedirs("model", exist_ok=True)
-
-with open("model/intrusion_model.pkl", "wb") as f:
-    pickle.dump(model, f)
-
-with open("model/label_encoders.pkl", "wb") as f:
-    pickle.dump(label_encoders, f)
-
-print("Model and label encoders saved in 'model/' folder successfully.")
+# -------------------------------
+# Save model & label encoder
+# -------------------------------
+joblib.dump(pipeline, os.path.join(model_folder, "intrusion_model.pkl"))
+joblib.dump(label_encoder, os.path.join(model_folder, "label_encoder.pkl"))
+print(f"Model and label encoder saved in '{model_folder}'")
