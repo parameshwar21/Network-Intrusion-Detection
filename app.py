@@ -10,10 +10,10 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # -------------------------------
-# Load trained model & encoder
+# Load trained SVM model & encoder
 # -------------------------------
 MODEL_FOLDER = "model"
-pipeline = joblib.load(os.path.join(MODEL_FOLDER, "intrusion_model.pkl"))
+pipeline = joblib.load(os.path.join(MODEL_FOLDER, "intrusion_model_svm.pkl"))
 label_encoder = joblib.load(os.path.join(MODEL_FOLDER, "label_encoder.pkl"))
 
 # -------------------------------
