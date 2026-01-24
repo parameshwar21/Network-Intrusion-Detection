@@ -1,8 +1,8 @@
-# retrain_save_model.py
+# retrain_save_model_svm.py
 import os
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
 from sklearn.preprocessing import LabelEncoder, StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -84,26 +84,29 @@ label_encoder = LabelEncoder()
 y_train_enc = label_encoder.fit_transform(y_train)
 
 # Map unseen test labels to -1
-y_test_enc = np.array([label_encoder.transform([lbl])[0] if lbl in label_encoder.classes_ else -1 for lbl in y_test])
+y_test_enc = np.array([
+    label_encoder.transform([lbl])[0] if lbl in label_encoder.classes_ else -1
+    for lbl in y_test
+])
 
 # -------------------------------
-# Build pipeline
+# Build pipeline with SVM
 # -------------------------------
 pipeline = Pipeline(steps=[
     ("preprocessor", preprocessor),
-    ("classifier", RandomForestClassifier(n_estimators=100, random_state=42))
+    ("classifier", SVC(kernel="rbf", C=1.0, gamma="scale", probability=True))
 ])
 
 # -------------------------------
 # Train model
 # -------------------------------
-print("Training Random Forest model...")
+print("Training SVM model...")
 pipeline.fit(X_train, y_train_enc)
 print("Training completed!")
 
 # -------------------------------
 # Save model & label encoder
 # -------------------------------
-joblib.dump(pipeline, os.path.join(model_folder, "intrusion_model.pkl"))
+joblib.dump(pipeline, os.path.join(model_folder, "intrusion_model_svm.pkl"))
 joblib.dump(label_encoder, os.path.join(model_folder, "label_encoder.pkl"))
-print(f"Model and label encoder saved in '{model_folder}'")
+print(f"SVM model and label encoder saved in '{model_folder}'")
